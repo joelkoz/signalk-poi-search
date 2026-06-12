@@ -30,7 +30,7 @@ test('registers a read-only plotterExtensions provider with a valid manifest', a
     'resources',
     'resources.filter'
   ])
-  assert.strictEqual(manifest.buttons[0].action.type, 'openPanel')
+  assert.strictEqual(manifest.buttons[0].action.type, 'togglePanel')
   assert.strictEqual(manifest.buttons[0].action.panel, manifest.panels[0].id)
   assert.strictEqual(manifest.panels[0].lifecycle, 'keepAlive')
   assert.strictEqual(manifest.widgets[0].size, '2x1')

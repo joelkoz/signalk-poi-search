@@ -30,7 +30,7 @@ function buildManifest() {
         title: 'POI Search',
         slot: 'mapToolbar',
         icon: 'travel_explore',
-        action: { type: 'openPanel', panel: 'poi-search-panel' }
+        action: { type: 'togglePanel', panel: 'poi-search-panel' }
       }
     ],
     panels: [

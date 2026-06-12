@@ -170,8 +170,8 @@ async function main() {
   client = await connectExtension()
   const saved = await client.state.get(undefined, 'extension').catch(() => ({}))
 
+  // No title here: the host chrome (drawer/dialog) shows the panel title.
   root.innerHTML = `
-    <h2>POI Search</h2>
     <label class="row"><span>Keyword</span>
       <input id="keyword" value="${esc(saved.keyword ?? '')}" placeholder="Name contains…"></label>
     <label class="row"><span>Category</span>

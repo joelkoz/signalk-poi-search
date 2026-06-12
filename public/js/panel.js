@@ -572,7 +572,6 @@
     client = await connectExtension();
     const saved = await client.state.get(void 0, "extension").catch(() => ({}));
     root.innerHTML = `
-    <h2>POI Search</h2>
     <label class="row"><span>Keyword</span>
       <input id="keyword" value="${esc(saved.keyword ?? "")}" placeholder="Name contains\u2026"></label>
     <label class="row"><span>Category</span>
