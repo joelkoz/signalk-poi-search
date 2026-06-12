@@ -35,7 +35,7 @@ function render(state) {
 // (open the widget's configuration, where it can be removed). Without this
 // guard, the pointerup that ends a long press would also fire the tap
 // action.
-const LONG_PRESS_MS = 600
+const LONG_PRESS_MS = 1500
 const MOVE_SLOP_PX = 8
 
 function installGestures(client) {
@@ -75,6 +75,15 @@ async function main() {
     render(state)
   }
   await client.subscribe(['state.changed'], load)
+  // The host clears the notes filter when the user dismisses the filter chip;
+  // reflect that here so the widget stops showing a stale active search.
+  await client.subscribe(['filters.changed'], (_name, params) => {
+    if (params?.type === 'notes' && params?.active === false) {
+      client.state
+        .set({ active: false, count: 0, label: '' }, 'extension')
+        .catch(() => {})
+    }
+  })
   installGestures(client)
   await load()
 }

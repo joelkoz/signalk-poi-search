@@ -193,6 +193,16 @@ async function main() {
   if (saved.active) {
     setStatus(`Active: ${saved.label}`)
   }
+
+  // Reflect an externally-cleared filter (host filter chip dismissed).
+  await client.subscribe(['filters.changed'], (_name, params) => {
+    if (params?.type === 'notes' && params?.active === false) {
+      lastResults = []
+      renderResults()
+      setStatus('Filter cleared — all POIs visible.')
+      client.state.set({ active: false, count: 0, label: '' }, 'extension').catch(() => {})
+    }
+  })
 }
 
 main().catch((err) => {
