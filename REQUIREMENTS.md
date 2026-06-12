@@ -21,7 +21,7 @@ by the plugin id `signalk-poi-search`:
   (form and results survive close/reopen).
 - One widget: `poi-results`, size `2x1`, `lifecycle: "whileEnabled"`, no
   config panel.
-- Asset URLs are server-relative under `/signalk-poi-search/`.
+- Asset URLs are server-relative under `/plotterext/signalk-poi-search/`.
 
 `listResources` returns `{}` while stopped; `setResource`/`deleteResource`
 always reject.
@@ -64,8 +64,13 @@ always reject.
 
 ## 4. Serving and packaging
 
-- Assets built to `public/`, committed, served at `/signalk-poi-search/`
-  via the `signalk-webapp` keyword.
+- Assets built to `public/`, committed, served by the plugin as a top-level
+  Express static route at `/plotterext/signalk-poi-search/`
+  (`app.use(ASSET_BASE, require('express').static(PUBLIC_DIR))`). The plugin
+  is deliberately **not** a `signalk-webapp` (keyword omitted) so it stays
+  out of the server's Webapps launcher; the pages only load inside a host
+  iframe. `/plugins/*` is not used — it is admin-gated and breaks read-only
+  users.
 - Plugin entry is dependency-free CommonJS.
 - `package.json` declares
   `"signalk": { "recommends": ["signalk-activecaptain-resources"] }` —

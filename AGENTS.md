@@ -34,9 +34,10 @@ plugin/     Plugin entry (CommonJS): registers the read-only
 src/web/    Panel/widget browser source (plain JS + CSS) built on
             signalk-plotterext-bus/extension.
 scripts/    build.mjs — esbuild bundles src/web -> public/.
-public/     Built web assets, committed. Served by the Signal K server at
-            /signalk-poi-search/ via the signalk-webapp mechanism.
-            Generated — do not hand-edit.
+public/     Built web assets, committed. Served by the plugin as a top-level
+            static route at /plotterext/signalk-poi-search/ (not a
+            signalk-webapp, so absent from the Webapps launcher). Generated —
+            do not hand-edit.
 test/       node --test plugin contract tests.
 ```
 
@@ -55,8 +56,14 @@ position (`navigation.position`).
 
 ## Engineering rules
 
-- **Serve assets only through the `signalk-webapp` mechanism** — never
-  `registerWithRouter()` routes (`/plugins/*` is admin-gated).
+- **Serve UI assets from a public top-level static route, not from
+  `/plugins/*`.** The plugin mounts `public/` itself with
+  `app.use('/plotterext/signalk-poi-search', require('express').static(PUBLIC_DIR))`.
+  Never use `registerWithRouter()` / `/plugins/*` for UI — admin-gated, breaks
+  read-only users. Do **not** re-add the `signalk-webapp` keyword: it would
+  list this plugin in the server's Webapps launcher, but these pages only load
+  inside a host iframe. (Express is provided by the server, so requiring it
+  adds no runtime dependency of our own.)
 - **The resource provider stays read-only**; the manifest is code.
 - **No server-side runtime dependencies**; the bus client is bundled into
   the browser assets at build time. Until `signalk-plotterext-bus` is on

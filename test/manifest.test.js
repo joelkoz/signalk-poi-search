@@ -35,7 +35,7 @@ test('registers a read-only plotterExtensions provider with a valid manifest', a
   assert.strictEqual(manifest.panels[0].lifecycle, 'keepAlive')
   assert.strictEqual(manifest.widgets[0].size, '2x1')
   for (const url of [manifest.panels[0].url, manifest.widgets[0].url]) {
-    assert.ok(url.startsWith('/signalk-poi-search/'))
+    assert.ok(url.startsWith('/plotterext/signalk-poi-search/'))
   }
 
   await assert.rejects(() => provider.methods.getResource('nope'))

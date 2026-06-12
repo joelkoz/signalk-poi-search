@@ -1,5 +1,5 @@
-// Build the panel/widget web assets into public/, served by the Signal K
-// server at /signalk-poi-search/ (signalk-webapp mechanism).
+// Build the panel/widget web assets into public/, which the plugin serves as
+// a top-level static route at /plotterext/signalk-poi-search/.
 
 import { build } from 'esbuild'
 import { cpSync, mkdirSync, writeFileSync } from 'node:fs'

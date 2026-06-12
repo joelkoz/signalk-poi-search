@@ -7,11 +7,19 @@
 // Store `recommends` mechanism) but works against any notes provider.
 //
 // The plugin itself only serves the manifest; all behavior lives in the
-// panel/widget pages in public/, served at /signalk-poi-search/ through the
-// standard signalk-webapp mechanism.
+// panel/widget pages in public/, which the plugin serves as a top-level
+// Express static route at /plotterext/<package-name>/. This is a public
+// route (no token required, same as the old signalk-webapp mechanism) but,
+// unlike a signalk-webapp, it does NOT appear in the server's Webapps
+// launcher — these pages only ever load inside a host chartplotter's iframe.
+// It is deliberately NOT a /plugins/* route: those are admin-gated, which
+// would break read-only users.
+
+const path = require('path')
 
 const PLUGIN_ID = 'signalk-poi-search'
-const ASSET_BASE = `/${PLUGIN_ID}`
+const ASSET_BASE = `/plotterext/${PLUGIN_ID}`
+const PUBLIC_DIR = path.join(__dirname, '..', 'public')
 
 const pkg = require('../package.json')
 
@@ -57,7 +65,26 @@ function buildManifest() {
 
 module.exports = (app) => {
   let providerRegistered = false
+  let assetsMounted = false
   let running = false
+
+  // Serve public/ as a top-level static route. Express is provided by the
+  // Signal K server, so requiring it adds no runtime dependency of our own.
+  // Guarded so the test harness (a fake app with no .use) is a no-op.
+  const mountAssets = () => {
+    if (assetsMounted) return
+    if (typeof app.use !== 'function') return
+    let serveStatic
+    try {
+      serveStatic = require('express').static
+    } catch {
+      app.error(`${PLUGIN_ID}: express unavailable; cannot serve ${ASSET_BASE}`)
+      return
+    }
+    app.use(ASSET_BASE, serveStatic(PUBLIC_DIR))
+    assetsMounted = true
+    app.debug(`${PLUGIN_ID}: assets served at ${ASSET_BASE}`)
+  }
 
   const registerProvider = () => {
     if (providerRegistered) return
@@ -94,6 +121,7 @@ module.exports = (app) => {
     schema: () => ({ type: 'object', properties: {} }),
     start() {
       running = true
+      mountAssets()
       registerProvider()
       app.debug(`${PLUGIN_ID}: started`)
     },
