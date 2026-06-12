@@ -5,11 +5,12 @@
   "main": "plugin/index.js",
   "keywords": [
     "signalk-node-server-plugin",
-    "signalk-category-utility"
+    "signalk-category-chart-plotters"
   ],
   "files": [
     "plugin",
     "public",
+    "docs/screenshots",
     "README.md",
     "LICENSE"
   ],
@@ -33,6 +34,17 @@
     "displayName": "POI Search",
     "recommends": [
       "signalk-activecaptain-resources"
-    ]
+    ],
+    "screenshots": [
+      "./docs/screenshots/1_freeboard_poi.png"
+    ],
+    "appstore": {
+      "displayName": "POI Search",
+      "categories": [
+        "chart-plotters"
+      ],
+      "author": "Joel Kozikowski",
+      "description": "Search and filter points of interest (Signal K notes) on plotterExtensions-capable chartplotters"
+    }
   }
 }
