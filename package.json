@@ -1,0 +1,32 @@
+{
+  "name": "signalk-poi-search",
+  "version": "0.1.0",
+  "description": "Search and filter points of interest (Signal K notes) on plotterExtensions-capable chartplotters",
+  "main": "plugin/index.js",
+  "keywords": [
+    "signalk-node-server-plugin",
+    "signalk-webapp",
+    "signalk-category-utility"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "author": "Joel Kozikowski",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joelkoz/signalk-poi-search.git"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.0",
+    "signalk-plotterext-bus": "file:../signalk-plotterext-bus"
+  },
+  "signalk-plugin-enabled-by-default": false,
+  "signalk": {
+    "displayName": "POI Search",
+    "recommends": [
+      "signalk-activecaptain-resources"
+    ]
+  }
+}
