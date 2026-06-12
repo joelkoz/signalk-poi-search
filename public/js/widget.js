@@ -462,7 +462,7 @@
     };
     await client.subscribe(["state.changed"], load);
     window.addEventListener("pointerup", () => {
-      client.call("ui.openPanel", { panel: "poi-search-panel" }).catch(() => {
+      client.call("ui.togglePanel", { panel: "poi-search-panel" }).catch(() => {
       });
     });
     await load();
