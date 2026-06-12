@@ -1,8 +1,7 @@
 # Requirements: signalk-poi-search
 
 The authoritative implementation spec for this plugin. It assumes the
-Plotter Extensions API (see `plotter-extensions-api.md` in the
-`signalk-instrument-widgets` repository) and the `signalk-plotterext-bus`
+Plotter Extensions API (see `plotter-extensions-api.md`) and the `signalk-plotterext-bus`
 wire protocol as context.
 
 ## 1. Manifest contract

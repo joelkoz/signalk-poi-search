@@ -11,8 +11,7 @@ Before changing or debugging this repository, read:
 
 The second reference extension for the Signal K **plotter extension**
 mechanism (the `plotterExtensions` resource type — see the specification
-document `plotter-extensions-api.md` in the `signalk-instrument-widgets`
-repository, destined for `SignalK/signalk-server`
+document `plotter-extensions-api.md`), destined for `SignalK/signalk-server`
 `docs/develop/rest-api/proposed/`).
 
 Where `signalk-instrument-widgets` exercises the widget surface, this
