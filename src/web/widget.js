@@ -31,6 +31,43 @@ function render(state) {
   }
 }
 
+// Distinguish a short tap (toggle the search panel) from a long press
+// (open the widget's configuration, where it can be removed). Without this
+// guard, the pointerup that ends a long press would also fire the tap
+// action.
+const LONG_PRESS_MS = 600
+const MOVE_SLOP_PX = 8
+
+function installGestures(client) {
+  let timer = null
+  let fired = false
+  let down = null
+  const cancel = () => {
+    if (timer) clearTimeout(timer)
+    timer = null
+  }
+  window.addEventListener('pointerdown', (e) => {
+    fired = false
+    down = { x: e.clientX, y: e.clientY }
+    timer = setTimeout(() => {
+      timer = null
+      fired = true
+      client.call('ui.toggleConfigPanel').catch(() => {})
+    }, LONG_PRESS_MS)
+  })
+  window.addEventListener('pointermove', (e) => {
+    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > MOVE_SLOP_PX) {
+      cancel()
+    }
+  })
+  window.addEventListener('pointercancel', cancel)
+  window.addEventListener('pointerup', () => {
+    cancel()
+    if (fired) return // long press already opened configuration
+    client.call('ui.togglePanel', { panel: 'poi-search-panel' }).catch(() => {})
+  })
+}
+
 async function main() {
   const client = await connectExtension()
   const load = async () => {
@@ -38,9 +75,7 @@ async function main() {
     render(state)
   }
   await client.subscribe(['state.changed'], load)
-  window.addEventListener('pointerup', () => {
-    client.call('ui.togglePanel', { panel: 'poi-search-panel' }).catch(() => {})
-  })
+  installGestures(client)
   await load()
 }
 

@@ -454,6 +454,39 @@
       </div>`;
     }
   }
+  var LONG_PRESS_MS = 600;
+  var MOVE_SLOP_PX = 8;
+  function installGestures(client) {
+    let timer = null;
+    let fired = false;
+    let down = null;
+    const cancel = () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+    };
+    window.addEventListener("pointerdown", (e) => {
+      fired = false;
+      down = { x: e.clientX, y: e.clientY };
+      timer = setTimeout(() => {
+        timer = null;
+        fired = true;
+        client.call("ui.toggleConfigPanel").catch(() => {
+        });
+      }, LONG_PRESS_MS);
+    });
+    window.addEventListener("pointermove", (e) => {
+      if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > MOVE_SLOP_PX) {
+        cancel();
+      }
+    });
+    window.addEventListener("pointercancel", cancel);
+    window.addEventListener("pointerup", () => {
+      cancel();
+      if (fired) return;
+      client.call("ui.togglePanel", { panel: "poi-search-panel" }).catch(() => {
+      });
+    });
+  }
   async function main() {
     const client = await connectExtension();
     const load = async () => {
@@ -461,10 +494,7 @@
       render(state);
     };
     await client.subscribe(["state.changed"], load);
-    window.addEventListener("pointerup", () => {
-      client.call("ui.togglePanel", { panel: "poi-search-panel" }).catch(() => {
-      });
-    });
+    installGestures(client);
     await load();
   }
   main().catch((err) => {
