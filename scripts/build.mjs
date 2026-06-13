@@ -22,6 +22,11 @@ await build({
 
 cpSync(join(root, 'src/web/poi.css'), join(pub, 'poi.css'))
 
+// Static assets (e.g. the app-store icon) ship under public/assets/ so the
+// server's icon probe resolves signalk.appIcon ("assets/...") via the
+// published tarball's public/ directory.
+cpSync(join(root, 'src/web/assets'), join(pub, 'assets'), { recursive: true })
+
 const page = (name, bodyClass, title) => `<!doctype html>
 <html lang="en">
 <head>

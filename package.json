@@ -1,6 +1,6 @@
 {
   "name": "signalk-poi-search",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "description": "Search and filter points of interest (Signal K notes) on plotterExtensions-capable chartplotters",
   "main": "plugin/index.js",
   "keywords": [
@@ -31,6 +31,7 @@
   },
   "signalk-plugin-enabled-by-default": false,
   "signalk": {
+    "appIcon": "assets/poi-search.png",
     "displayName": "POI Search",
     "recommends": [
       "signalk-activecaptain-resources"
