@@ -64,4 +64,4 @@ with a notes provider such as signalk-activecaptain-resources.</p>
 `
 )
 
-console.log('public/ assets written')
+console.error('public/ assets written')

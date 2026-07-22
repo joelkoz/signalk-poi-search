@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Build script logs to stderr instead of stdout. On Node 22 / npm 10 the
+  SignalK plugin-CI "Verify npm pack" step runs `prepare` (the build) even
+  under `--ignore-scripts`, so build output on stdout corrupted the
+  `npm pack --json` payload and the file-list parse failed — making the check
+  report the plugin entry point and screenshots as missing from the tarball.
+  Build-tooling only; the published tarball is unchanged.
+
 ## [0.5.3] - 2026-07-22
 
 ### Fixed
