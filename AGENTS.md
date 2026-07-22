@@ -64,10 +64,16 @@ position (`navigation.position`).
   inside a host iframe. (Express is provided by the server, so requiring it
   adds no runtime dependency of our own.)
 - **The resource provider stays read-only**; the manifest is code.
-- **No server-side runtime dependencies**; the bus client is bundled into
-  the browser assets at build time. Until `signalk-plotterext-bus` is on
-  npm, `package.json` carries it as a local `file:` devDependency — replace
-  with a semver range at publication.
+- **No server-side runtime dependencies.** The bus client is bundled into
+  the browser assets at build time, and `express` is provided by the Signal K
+  server at runtime — neither is a shipped runtime dependency. Both are carried
+  as **devDependencies referenced by their published npm semver range**
+  (`signalk-plotterext-bus`, `express`), never a local `file:` path. If you
+  develop against a local checkout of the bus, do **not** commit the resulting
+  lockfile — it records the sibling path and pins the linked version, which
+  breaks `npm ci`. Regenerate from the registry before committing:
+  `rm -rf node_modules package-lock.json && npm install`, then confirm the lock
+  has zero `../signalk-plotterext-bus` references.
 - **Filters are display-only and user-clearable.** This extension never
   modifies notes; it only pushes include filters with a human-readable
   `label` (the host renders it as a clearable chip). Clearing state and the
