@@ -7,13 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-07-22
+
 ### Fixed
 - Reference the `signalk-plotterext-bus` build dependency by its published npm
   version (`^0.5.0`) instead of a local `file:` path, so the project installs,
   builds, and tests cleanly from a fresh clone (it previously only resolved
-  against a sibling working copy).
+  against a sibling working copy). Regenerated `package-lock.json` from the
+  registry to purge the stale local-path reference that broke `npm ci`.
 
 ### Added
+- Declare `express` as a `devDependency` so local install/build/test resolves it
+  deterministically instead of relying on a globally-hoisted copy. It remains a
+  build-only dependency — at runtime the plugin uses the `express` provided by
+  the Signal K server, so it is not shipped as a runtime dependency.
 - SignalK plugin-CI workflow (`.github/workflows/signalk-ci.yml`) that runs the
   shared cross-platform test matrix.
 - This changelog.
