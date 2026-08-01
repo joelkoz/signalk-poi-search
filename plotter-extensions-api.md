@@ -1,8 +1,10 @@
----
-title: Plotter Extensions API
----
-
 # Working with the Plotter Extensions API
+
+> **Convenience copy.** This file is bundled so the repository is
+> self-contained, and it can fall behind the original. The authoritative
+> version is maintained with Freeboard-SK, the reference host, at
+> [`docs/api/plotter-extensions-api.md`](https://github.com/SignalK/freeboard-sk/blob/master/docs/api/plotter-extensions-api.md).
+> Prefer that copy whenever you can reach it; treat this one as a snapshot.
 
 Web-based Signal K chartplotters (e.g. Freeboard-SK) are general-purpose
 applications. Many valuable features — instrument widgets, custom panels,
@@ -27,9 +29,10 @@ the existing Signal K plugin/app-store flow.
 > implemented by the reference host (Freeboard-SK) and the reference
 > extensions (`signalk-instrument-widgets`, `signalk-poi-search`): widgets,
 > panels, toolbar buttons, state storage, Signal K data relay, unit
-> preferences, resource display filters, map control and headless
-> background runtimes. Manifest-declared filter chains and host-into-runtime
-> calls are out of scope for this version (see Non-Goals).
+> preferences, resource display filters, map control, live route editing,
+> chart-layer management and headless background runtimes. Manifest-declared
+> filter chains and host-into-runtime calls are out of scope for this version
+> (see Non-Goals).
 
 ---
 
@@ -118,9 +121,12 @@ extension id (the providing plugin's id is the recommended key):
 | `signalk.stream`    | Host streams Signal K path values to extension contexts over the message bus.                                                     |
 | `signalk.put`       | Host relays Signal K PUT requests from extension contexts.                                                                        |
 | `units`             | Host exposes the user's preferred display units (`units.get`).                                                                    |
-| `map`               | Host implements the `map.*` methods (view query and control).                                                                     |
+| `map`               | Host implements the `map.*` methods (view query and control) and emits `map.view` when the chart viewport changes.                |
 | `resources`         | Host implements `resources.list` (relayed resource queries).                                                                      |
 | `resources.filter`  | Host implements imperative resource display filters.                                                                              |
+| `routes`            | Host implements live route edit-buffer commands (`route.*`) and emits route lifecycle/mutation events.                            |
+| `charts`            | Host implements chart-layer management (`chart.*`) — enumerate the managed charts, toggle visibility/opacity/order — and emits `chart.*` change events. |
+| `nightMode`         | Host implements the `nightMode.*` methods (read/force the night-vision display state, follow the server's `environment.mode`) and emits `nightMode.changed`. |
 | `ui`                | Host implements `ui.openPanel` / `ui.closePanel`.                                                                                 |
 
 The vocabulary is open-ended: future versions add ids (buttons, resource
@@ -235,8 +241,8 @@ are for.
 A runtime speaks the same bus protocol as widgets and panels; its handshake
 `context.kind` is `background`. It may call the host API — `state.*`
 (extension scope by default, as it has no widget instance), `signalk.*`,
-`resources.*` including `resources.setFilter`, `units.get`, `map.*`, and
-`ui.openPanel`/`ui.togglePanel`. It has no `ui.closePanel` or
+`resources.*` including `resources.setFilter`, `route.*`, `chart.*`, `units.get`,
+`map.*`, and `ui.openPanel`/`ui.togglePanel`. It has no `ui.closePanel` or
 `ui.*ConfigPanel` (those are panel/widget affordances). The typical use is a
 client-side service that holds session state and keeps work alive so a panel
 can **close itself** (`ui.closePanel`) without losing that state, then
@@ -334,8 +340,15 @@ inside a routing envelope over `postMessage`**:
   dot-separated event name. Hosts only forward events a context subscribed
   to via `events.subscribe`; subscription patterns support
   eventemitter2-style wildcards (`*` one segment, `**` any remainder).
-- **Connection**: the extension repeats the `bus.ready` notification until
-  the host answers with `bus.handshake`:
+- **Connection**: the **caller** repeats the `bus.ready` notification until
+  the **host** answers with `bus.handshake`. In the standard topology the
+  caller is an extension iframe posting to its parent host; in the
+  reverse-embedding topology the caller is the application embedding the
+  plotter, posting to the plotter's child iframe (see *Embedding Hosts*). A
+  caller MAY include an `id` in its `bus.ready` payload; the host adopts it as
+  `context.id` when it does not otherwise know the caller (the
+  reverse-embedding case). In the standard topology the host determines the
+  context from the manifest and ignores the payload. The handshake:
 
 ```json
 {
@@ -352,6 +365,8 @@ inside a routing envelope over `postMessage`**:
     "map",
     "resources",
     "resources.filter",
+    "routes",
+    "charts",
     "background.iframe",
     "ui"
   ],
@@ -365,15 +380,63 @@ inside a routing envelope over `postMessage`**:
 }
 ```
 
-`context.kind` is `widget`, `panel` or `background` (this version). For a
-configuration panel, `targetInstance`/`targetWidget` identify the widget
-being configured; a `background` runtime carries neither.
+`context.kind` is `widget`, `panel`, `background` or `embedding-host` (this
+version). For a configuration panel, `targetInstance`/`targetWidget` identify
+the widget being configured; a `background` runtime and an `embedding-host`
+carry neither. An `embedding-host` context describes the **caller** — the
+application embedding the plotter — while the plotter remains the API host;
+see *Embedding Hosts*.
 
 The reference implementation of both sides of this protocol is the
 [`signalk-plotterext-bus`](https://github.com/joelkoz/signalk-plotterext-bus)
 npm package (`/host` and `/extension` entry points). Its README documents
 the full wire format; **the documented wire format, not the package, is the
 contract** — any conforming implementation interoperates.
+
+---
+
+## Embedding Hosts
+
+The contributions above put the plotter on the outside: it is the top-level
+page, and each extension runs in a child iframe the plotter created. The bus
+also supports the **reverse** arrangement — the plotter runs inside an iframe
+embedded by another application (for example, an instrument dashboard that
+shows the chart plotter in one of its panes). That outer application is an
+**embedding host**.
+
+Roles do not change with topology, only the window each side addresses:
+
+- The **plotter remains the API host/provider** — it serves the same Host API
+  it serves to extensions. It is now the *child* iframe, so it directs its bus
+  port at `window.parent` instead of at a child iframe's `contentWindow`.
+- The **embedding host is the caller** — it plays the role an extension client
+  plays (it calls host methods and subscribes to host events) and, as the
+  caller, **initiates** the handshake: it posts `bus.ready` to the plotter's
+  iframe until the plotter answers `bus.handshake`.
+
+An embedding host is **not** a manifest contribution — there is no
+`plotterExtensions` entry, no `requires` list, and no per-extension enable
+gate. It discovers what the plotter offers by reading the `capabilities` array
+in the handshake, and it identifies itself with an `id` in its `bus.ready`
+payload (used for `state.*` namespacing and event attribution); a host that
+receives no `id` assigns the default `embedding-host`. The handshake
+`context.kind` is `embedding-host` with `instanceId: null`.
+
+An embedding host is offered the **full host API surface** — the same methods a
+background runtime receives. Methods that reference a manifest contribution (the
+widget and configuration-panel affordances) have no target for an embedding host
+and are simply unused.
+
+**Trust is same-origin, and a host MUST enforce it.** Because the plotter did
+not create the embedding page, a host **MUST** verify that the parent's origin
+matches its own served origin before completing the handshake, and **MUST NOT**
+relax the origin check to `*`. A same-origin embedder — for instance, another
+Signal K webapp served by the same server — already shares the plotter's
+authenticated session and can reach the server's REST/WebSocket APIs directly,
+so exposing the host API to it grants no authority it did not already have; a
+cross-origin embedder is refused. (If the plotter is configured to talk to a
+different server than the one that served the embedding page, the origins will
+not match and the handshake is refused — a deliberate limitation, not a bug.)
 
 ---
 
@@ -392,9 +455,23 @@ contract** — any conforming implementation interoperates.
 | `resources.list`        | `{ type, query? }`                             | resource collection        |
 | `resources.setFilter`   | `{ type, filter }`                             | `{}`                       |
 | `resources.clearFilter` | `{ type }`                                     | `{}`                       |
+| `route.list`            | —                                              | `{ routes }` (the visible set) |
+| `route.create`          | `{ points (≥2), name?, description? }`         | `{ routeId, rev }`         |
+| `route.show`            | `{ ref }` (stored route reference)             | `{ routeId, rev }`         |
+| `route.hide`            | `{ routeId }`                                  | `{}`                       |
+| `route.delete`          | `{ routeId }`                                  | `{}`                       |
+| `route.get`             | `{ routeId }`                                  | `{ routeId, name, description, rev, saved, dirty, points }` |
+| `route.replace`         | `{ routeId, points (≥2) }`                     | `{ rev }`                  |
+| `route.save`            | `{ routeId, name?, description?, dialog? }`    | `{ href, rev }`            |
+| `chart.list`            | —                                              | `{ charts }` (display order) |
+| `chart.setVisibility`   | `{ ids: string[], visible: boolean }`          | `{}`                       |
+| `chart.setOpacity`      | `{ ids: string[], opacity: number }`           | `{}`                       |
+| `chart.setOrder`        | `{ order: string[] }`                          | `{}`                       |
 | `map.getView`           | —                                              | `{ center, zoom, bounds }` |
 | `map.center`            | `{ position: [lon, lat], zoom? }`              | `{}`                       |
 | `map.fitBounds`         | `{ bounds: [minLon, minLat, maxLon, maxLat] }` | `{}`                       |
+| `nightMode.get`         | —                                              | `{ enabled, auto }`        |
+| `nightMode.set`         | `{ enabled?, auto? }`                           | `{}`                       |
 | `ui.openPanel`          | `{ panel }`                                    | `{}`                       |
 | `ui.togglePanel`        | `{ panel }`                                    | `{}`                       |
 | `ui.openConfigPanel`    | — (widget contexts)                            | `{}`                       |
@@ -408,7 +485,9 @@ they are not host-specific. Each is delivered only to contexts that have
 subscribed to its name via `events.subscribe` (so a context that never
 subscribes pays nothing). A host emits an event when the corresponding
 capability is supported: `state.changed` always; `sk.<path>` with
-`signalk.stream`; `filters.changed` with `resources.filter`. The
+`signalk.stream`; `filters.changed` with `resources.filter`; route events
+(`route.*`) with `routes`; chart events (`chart.*`) with `charts`;
+`map.view` with `map`; `nightMode.changed` with `nightMode`. The
 connection-level notifications `bus.ready` and `bus.handshake` (see
 Communication) are the only other host/extension events and are
 handled by the protocol layer, not subscribed to.
@@ -423,6 +502,46 @@ handled by the protocol layer, not subscribed to.
   a resource type was set (`active: true`) or cleared (`active: false`, e.g.
   the user dismissed the host's filter chip). Extensions should reflect a
   clear in their own UI/state.
+- `route.visible` — `{ routeId, rev, name, pointCount, saved, dirty }`: a route
+  entered the visible set (became rendered on the chart). A freshly drawn or
+  `route.create`d draft arrives `saved:false, dirty:true`; a stored route brought
+  into view (`route.show`, or the user displaying it) arrives `saved:true,
+  dirty:false`.
+- `route.dirty` — `{ routeId, rev, reason? }`: content changed — a reorder,
+  multi-point edit, metadata change, or whole-geometry replace. Sets
+  `dirty:true`; leaves `saved` unchanged. A subscriber should re-seed with
+  `route.get`. This is the conformance floor — see *Live routes*.
+- `route.saved` — `{ routeId, rev, href, name, saved, dirty }`: the route's
+  current state was persisted to the `routes` resource collection; arrives
+  `saved:true, dirty:false`. `href` is the stored resource id, and `name` is the
+  persisted name (which the host's save dialog may have just set — e.g. an
+  unnamed draft saved as "rt1"), so a follower can relabel without re-fetching.
+  The route stays visible and addressable under the same `routeId`.
+- `route.hidden` — `{ routeId, rev, saved }`: a route left the visible set.
+  `saved:true` — a stored route was made invisible (the resource is untouched and
+  can be shown again); `saved:false` — an unsaved draft was deleted (gone for
+  good). The umbrella name never overstates what happened.
+- `chart.visibility` — `{ id, visible }`: a chart layer was shown or hidden. A
+  batch `chart.setVisibility` emits one event per *changed* chart; charts already
+  in the requested state emit nothing.
+- `chart.opacity` — `{ id, opacity }`: a chart layer's display opacity (0..1)
+  changed.
+- `chart.order` — `{ order }`: the chart display/stacking order changed; `order`
+  is the new full ordered id list, topmost first (the same order `chart.list`
+  returns).
+
+  The chart events are **origin-transparent** like the route events — a host
+  emits them for *every* change, whether it came from an extension command or the
+  user's own chart controls, so a following extension stays in sync no matter who
+  is driving.
+- `map.view` — `{ center, zoom, bounds }`: the chart viewport was panned and/or
+  zoomed. The payload is the same shape `map.getView` returns. Emitted once per
+  **settled** view change, not continuously during the gesture. See *Map view*.
+- `nightMode.changed` — `{ enabled, auto }`: the host's night-mode state changed.
+  Like the route and chart events it is **origin-transparent** — emitted for
+  *every* change, whether an extension called `nightMode.set`, the user toggled
+  the host's own night-mode control, or the server's `environment.mode` flipped
+  while `auto` is on. See *Night mode*.
 
 ### Resource queries and display filters
 
@@ -481,6 +600,244 @@ The host tracks at most one filter per (extension, resource type); a new
 `setFilter` replaces it. Filters from multiple extensions compose by
 intersection. Filters are not persisted across host reloads.
 
+### Live routes
+
+The `routes` capability gives an extension read/write access to the routes the
+host currently has **visible on the chart**, plus a stream of lifecycle and
+mutation events. The visible set is small and practical — the one or two routes a
+user is actually working with — never the hundreds that may be stored on the
+server.
+
+**The visible set.** A host renders some routes on the chart: routes the user is
+drawing or modifying, routes an extension created, and stored routes the user has
+chosen to display. Every route in that set is addressable. Routes that exist only
+on the server (the stored catalog) are **not** — an extension that wants one
+browses the server's resources API directly (`GET /resources/routes` returns the
+whole catalog with full geometry) and asks the host to display it (`route.show`).
+
+**Addressing — opaque handles.** Each visible route has a host-assigned `routeId`
+that is **opaque**: the extension treats it as a token and never parses it. The
+host mints and decodes it (it may encode a stored resource id, an ephemeral draft
+id, or anything else — that is implementation, kept behind the handle). A
+`routeId` is stable for as long as the route stays visible. Every command and
+event names its `routeId`. `route.list` enumerates the visible set; a host that
+only ever shows one route at a time simply exposes one entry.
+
+**Two flags: `saved` and `dirty`.** Orthogonal, and both appear on `route.get`,
+`route.list`, and the lifecycle events:
+
+- `saved` — is the route backed by a persisted `routes` resource? A never-saved
+  draft is `false`; a stored route is `true`.
+- `dirty` — does the in-memory geometry differ from what is persisted (pending
+  unsaved changes)? A clean route is `false`; an edited one is `true`.
+
+  | `saved` | `dirty` | state |
+  | ------- | ------- | ----- |
+  | `false` | `true`  | a draft with content — needs saving to persist |
+  | `true`  | `false` | a clean stored route — matches the server |
+  | `true`  | `true`  | a stored route with unsaved edits |
+
+**Editing stages; it does not write through.** Manipulating a visible route —
+`route.replace`, or the user's own native editing — changes the in-memory route
+and emits `route.dirty` (setting `dirty:true`); it does **not** touch the server,
+and it leaves `saved` unchanged. The change is committed only by `route.save`, or
+discarded by the host's editing UI / `route.hide` (for a draft). This mirrors how
+a native editor already works — manipulate, then save or discard — and applies
+uniformly to drafts and stored routes.
+
+**Bringing routes in and out of view.** The function calls are deliberately the
+traditional **create / show / hide / delete**; the visibility/`saved`/`dirty`
+model lives in the *events* and route properties, not in the verbs.
+
+- `route.create({ points, name?, description? })` adds a new unsaved route to the
+  visible set (`saved:false`). `points` is **required and must hold at least two
+  waypoints** (a route needs a segment); fewer is rejected with
+  `routes.badRequest`. `description` is the route-level description (distinct from
+  a waypoint's per-point `description`) and round-trips through `route.get` and
+  `route.save`.
+- `route.show({ ref })` brings an existing **stored** route into the visible set
+  and returns its `routeId`, so the extension can read and edit it in place.
+- `route.hide({ routeId })` removes a route from the map. For a **stored** route
+  this just unchecks its visibility — the resource is untouched
+  (`route.hidden saved:true`). For an **unsaved** route it deletes it, since the
+  only store it has is the visibility buffer (`route.hidden saved:false`).
+- `route.delete({ routeId })` **permanently deletes a stored route** from the
+  resource collection. Deleting an *unsaved* route has the same effect as hiding
+  it (the draft is discarded). Either way the route leaves the visible set as
+  `route.hidden saved:false` (gone — no longer retrievable).
+
+So `hide` and `delete` both emit `route.hidden`; the event's `saved` flag tells a
+follower the outcome (`true` = still on the server, `false` = gone), while the
+*verb the extension called* carries the intent.
+
+**Points and geometry.** A route's points are an ordered list (0-based). A point
+is `{ position: [lon, lat, alt?], name?, description? }` — `name`/`description`
+map to a host's per-point metadata and round-trip through `route.get`,
+`route.replace`, and `route.save`. `route.create` and `route.replace` require at
+least two points and reject a malformed point (a non-numeric `position`, or
+non-string `name`/`description`) with `routes.badRequest`.
+
+**Revisions and mirroring.** Each route carries a monotonic `rev` that
+increments on every mutation. `route.get` and `route.list` report the current
+`rev`, and every mutation event and every mutating command result carries the
+post-change `rev`. In v1 the mutation signal is **`route.dirty`**: an extension
+mirrors a route by calling `route.get` whenever it sees `route.dirty` (or a `rev`
+gap). The protocol still offers a full snapshot (`route.get`) so the author never
+has to reconstruct state from a partial stream.
+
+**`route.dirty` is the conformance floor.** Every change to a visible route's
+content — a multi-point edit, a whole-geometry `route.replace` (e.g. an
+auto-router's), a metadata change, or the reference host's `Modify` flow (which
+hands back a whole coordinate array with no "which vertex moved") — emits
+`route.dirty`. A host emits `route.visible`, `route.hidden`, `route.saved`, and
+`route.dirty` — geometry is always edited as a whole (`route.replace` or the
+host's own native editing), so a single "on `route.dirty`, `route.get`" keeps a
+follower in sync without tracking who changed what.
+
+**Origin transparency.** Events are emitted for _every_ change regardless of
+origin — an extension command, the user's native editing, or another
+extension — so a follower stays consistent no matter who is driving. As with
+all host events, a context receives them only after `events.subscribe` (e.g.
+`{ patterns: ["route.**"] }`).
+
+**Saving.** `route.save` persists the route's current state to the `routes`
+resource collection through the user's authenticated session, returning the
+stored resource `href` and emitting `route.saved` (`saved:true, dirty:false`).
+The route **stays visible and addressable under the same `routeId`** — saving
+does not remove or invalidate it. For a never-saved draft this creates a new
+resource; for an already-stored route with pending edits it updates that
+resource. It is **headless by default** — saved with the supplied
+`name`/`description`, falling back to the route's current name. Pass
+`dialog: true` to have the host prompt for the name/description instead, its
+dialog prefilled from those params; the reference host (Freeboard-SK) opens its
+Route Details dialog, and a cancelled dialog rejects with `routes.saveCancelled`.
+
+Note the `routeId` is the host's **opaque handle**, distinct from the `href` of
+the saved resource (an `/resources/routes/<id>` reference returned by the save) —
+they are not interchangeable, and a saved route keeps the same `routeId` it had
+before the save.
+
+**Errors** use the standard `error.data.reason` convention: `routes.unknownId`
+(no such `routeId`), `routes.badRequest` (invalid params — e.g. `route.create`
+with fewer than two points, a non-numeric `position`, or non-string metadata),
+`routes.badRef` (`route.show` reference not found), `routes.saveFailed` (server
+rejected the persist — distinct from a user cancel), `routes.saveCancelled` (the
+user dismissed the save dialog), `routes.notSupported` (host lacks `routes`).
+
+### Chart layers
+
+The `charts` capability is a **lightweight facade over the chart layers the host
+already manages** — the same charts the user turns on and off in the host's own
+chart controls. An extension enumerates them, reads which are shown and in what
+order, and changes visibility, opacity and stacking order. It is deliberately
+**not** a chart provider: there is no create, add, import, or delete. Chart
+sources come from the server's charts resource and the host's own configuration;
+this capability only *manages the display* of what already exists.
+
+**Addressing — opaque ids.** Each managed chart has a host-assigned `id` that is
+**opaque**: the extension treats it as a token and never parses it (a host may
+back it with a charts-resource id, a built-in layer key, or anything else). An id
+is stable for as long as the chart stays in the host's managed set. Every command
+and event names charts by `id`.
+
+**Enumerating — `chart.list`.** Returns the managed charts **in display order,
+topmost first** (index 0 is drawn on top). Each entry is:
+
+```jsonc
+{
+  "id": "noaa-12345",        // opaque, stable, host-assigned
+  "name": "NOAA 12345 — Miami",
+  "visible": true,
+  "opacity": 1.0,            // 0..1
+  "type": "raster",          // best-effort: raster | vector | S-57 | WMS | …
+  "bounds": [-80.5, 25.5, -80.0, 26.0],  // [minLon,minLat,maxLon,maxLat], optional
+  "minZoom": 4, "maxZoom": 18            // optional
+}
+```
+
+`id`, `name`, `visible` and `opacity` are always present; `type`, `bounds`,
+`minZoom` and `maxZoom` are best-effort and omitted when the host does not know
+them. Because the array is ordered, `chart.list` also *is* the way to read the
+current stacking order — there is no separate `getOrder`.
+
+**Mutating — all batch.** Every mutator takes a set, so an extension turns
+several charts on or off (or retints or restacks them) in one call:
+
+- `chart.setVisibility({ ids, visible })` — show (`true`) or hide (`false`) each
+  named chart.
+- `chart.setOpacity({ ids, opacity })` — set display opacity (0..1) on each named
+  chart.
+- `chart.setOrder({ order })` — set the display/stacking order. `order` is a list
+  of chart ids, **topmost first**. Ids the caller omits keep their existing
+  relative order after the named ones. **Order is host-clamped:** a host with
+  z-bands, pinned base layers or category grouping honors the requested *relative*
+  order within its own constraints rather than promising a literal global stack —
+  so `setOrder` expresses intent, and the resulting order is whatever the host
+  reports back on the next `chart.list` / `chart.order` event.
+
+**Following changes.** The host emits `chart.visibility`, `chart.opacity` and
+`chart.order` for **every** change — an extension's own command, another
+extension's, or the user toggling a chart in the host's chart controls (the same
+origin-transparency the route events have). A batch `chart.setVisibility` emits
+one `chart.visibility` per *changed* chart (charts already in the requested state
+emit nothing). Subscribe with `{ patterns: ["chart.**"] }`; re-read `chart.list`
+when a fuller snapshot is needed.
+
+**Errors** use the standard `error.data.reason` convention: `charts.unknownId`
+(one of the supplied ids names no managed chart), `charts.badRequest` (invalid
+params — e.g. a missing `ids` array, a non-boolean `visible`, or an out-of-range
+`opacity`), `charts.notSupported` (host lacks `charts`).
+
+### Map view
+
+The `map` capability covers the chart viewport — where the map is looking. An
+extension **reads** it with `map.getView`, **drives** it with `map.center` /
+`map.fitBounds`, and **follows** it with the `map.view` event.
+
+The view is three values, and `map.getView` and `map.view` carry exactly the same
+shape:
+
+```jsonc
+{
+  "center": [-80.19, 25.77],              // [lon, lat] of the viewport centre
+  "zoom": 13.4,                           // may be fractional
+  "bounds": [-80.5, 25.5, -80.0, 26.0]    // [minLon,minLat,maxLon,maxLat]
+}
+```
+
+`bounds` is the axis-aligned lon/lat box covering what is currently rendered — on
+a host whose map can be rotated, the box that contains the rotated view, not the
+view itself. Treat it as "at least this much is on screen".
+
+**`map.view`** (see *Host events*) is emitted when the viewport has **settled** —
+once the pan or zoom gesture and any kinetic glide have come to rest, which is
+what `moveend` means on the common map engines. It is deliberately **not** a
+per-frame stream: a drag across the chart produces one event, not dozens, so an
+extension that refetches data for the visible area does so once. A single event
+carries the whole view rather than separate pan and zoom notifications, because
+one gesture routinely changes both (a pinch-zoom, or a `map.fitBounds`) — an
+extension that cares which changed compares against the view it last saw.
+
+Like the route, chart and night-mode events it is **origin-transparent**: the host
+emits it for *every* settled change, whether it came from the user dragging the
+chart, the host recentring on the vessel, or an extension's own `map.center` /
+`map.fitBounds` call.
+
+The usual pattern is seed-then-follow — subscribe with
+`{ patterns: ["map.view"] }`, then call `map.getView` once for the starting
+state, so no change is missed between the two:
+
+```js
+await client.subscribe(['map.view'], (_name, view) => applyView(view))
+applyView(await client.call('map.getView'))
+```
+
+**Older hosts.** `map.view` was added after the `map` capability itself, so a host
+built against the earlier contract advertises `map`, answers `map.getView`, and
+never emits. An extension that must work on such a host should fall back to
+polling `map.getView` if no `map.view` arrives — but keep the interval slow, since
+polling for a change is exactly what this event exists to avoid.
+
 ### State storage
 
 `state.get`/`state.set` give an extension small host-persisted key/value
@@ -519,6 +876,51 @@ extensions must tolerate missing ones. Extensions rendering path values
 should combine a path's `meta.units` with these preferences to decide which
 conversions to offer and which to preselect.
 
+### Night mode
+
+Marine chartplotters carry a **night-vision display mode** — a dimmed, low-blue
+appearance for use after dark. The `nightMode` capability lets an extension read
+that state, change it, and follow it, so an embedded panel (e.g. an instrument
+gauge) matches the host instead of glowing white on a dark bridge.
+
+The state has two booleans:
+
+```json
+{ "enabled": true, "auto": false }
+```
+
+- **`enabled`** — whether night mode is *currently applied* (the resolved state the
+  user sees). This is what an extension reads to theme its own UI.
+- **`auto`** — whether the host is deriving `enabled` from the server's
+  `environment.mode` (`night` → on; `day`/`dusk` → off). When `auto` is `true`,
+  `enabled` tracks the server automatically.
+
+**`nightMode.get`** returns the current `{ enabled, auto }`.
+
+**`nightMode.set({ enabled?, auto? })`** changes it. The three effective states an
+extension can request:
+
+- **Force on** — `{ enabled: true }`.
+- **Force off** — `{ enabled: false }`.
+- **Follow the server** — `{ auto: true }`.
+
+Setting `enabled` explicitly is a manual override: it implies `auto: false`, so an
+extension that forces a value takes the display off the server's `environment.mode`
+until `auto` is turned back on. Setting `{ auto: true }` hands control back to the
+server and recomputes `enabled` from the current `environment.mode`. A single call
+may carry both fields.
+
+**`nightMode.changed`** (see *Host events*) is emitted **origin-transparently** for
+every change — an extension's own `set`, the user toggling the host's night-mode
+control, or the server's `environment.mode` flipping while `auto` is on — so an
+extension that subscribes with `{ patterns: ["nightMode.changed"] }` stays in sync
+no matter who is driving. A context that needs the state before the first change
+reads it once with `nightMode.get`.
+
+**Errors** use the standard `error.data.reason` convention: `nightMode.badRequest`
+(invalid params — e.g. a non-boolean `enabled`/`auto`, or neither field present),
+`nightMode.notSupported` (host lacks `nightMode`).
+
 ---
 
 ## Providing an Extension
@@ -554,7 +956,7 @@ A Signal K plugin:
    authenticated resources API, so an unauthenticated user sees no extensions
    regardless of how the assets are served. For how to mount such a route from
    a plugin, see
-   [Plotter Extension Provider plugins](../../plugins/plotter_extension_provider_plugins.md).
+   [Plotter Extension Provider plugins](./plotter_extension_provider_plugins.md).
 
 3. Declares inter-plugin relationships through the App Store mechanism
    (`"signalk": { "recommends": ["<plugin-name>"] }` in `package.json`)
@@ -580,6 +982,11 @@ adversarial boundary**:
 - Extension contexts are same-origin with the Signal K server and may call
   its REST/WebSocket APIs directly with the user's session where the host
   API does not suffice.
+- When the plotter is itself embedded by another application (see *Embedding
+  Hosts*), it exposes the host API to the embedding page **only** after
+  verifying that page is same-origin; the parent-facing connection MUST pin
+  the origin and MUST NOT use `*`. Same-origin is the sole trust boundary for
+  reverse embedding — a same-origin embedder already shares the user's session.
 
 ---
 
@@ -593,7 +1000,10 @@ adversarial boundary**:
   shared unit-aware configuration panel — and
   [`signalk-poi-search`](https://github.com/joelkoz/signalk-poi-search) — a
   toolbar button + keepAlive search panel + results widget exercising
-  resource queries, display filters and map control.
+  resource queries, display filters and map control — and
+  `signalk-auto-route` *(planned)* — a toolbar button + parameter panel +
+  server-side routing engine exercising the `routes` capability (land-avoidance
+  auto-routing over the host's live route buffer; see its own SPEC).
 - **Host**: Freeboard-SK (feature branch, in development) — anchor-area
   widget overlay, placement UI, state storage, multiplexed Signal K relay,
   toolbar buttons, panel drawer, filter chips, map control.
