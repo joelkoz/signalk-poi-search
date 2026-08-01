@@ -5,7 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-08-01
+
+First stable release. The plugin has been in use against Freeboard-SK and
+`signalk-activecaptain-resources` through the 0.5.x series; this release adds
+the persistent category filter and settles the panel's behaviour, so the
+interface it presents to a host is now considered stable.
 
 ### Added
 - **Show on chart**: a persistent per-category filter in the search panel —
