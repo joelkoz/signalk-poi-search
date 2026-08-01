@@ -33,10 +33,13 @@ plugin/     Plugin entry (CommonJS): registers the read-only
 src/web/    Panel/widget browser source (plain JS + CSS) built on
             signalk-plotterext-bus/extension.
 scripts/    build.mjs — esbuild bundles src/web -> public/.
-public/     Built web assets, committed. Served by the plugin as a top-level
-            static route at /plotterext/signalk-poi-search/ (not a
-            signalk-webapp, so absent from the Webapps launcher). Generated —
-            do not hand-edit.
+public/     Built web assets. Gitignored and never committed — regenerated
+            by the `prepare` script, so it is rebuilt on `npm install` and
+            again when npm packs the tarball. Whitelisted in package.json
+            `files`, which is how it reaches the published package. Served by
+            the plugin as a top-level static route at
+            /plotterext/signalk-poi-search/ (not a signalk-webapp, so absent
+            from the Webapps launcher). Generated — do not hand-edit.
 test/       node --test plugin contract tests.
 ```
 
@@ -99,4 +102,19 @@ position (`navigation.position`).
   'All shown types' always works. The category list is a *seed*, not a
   fixture: categories seen in query results are learned and remembered, so
   never assume the ActiveCaptain set is exhaustive.
-- Rebuild and commit `public/` in the same change as any `src/web` edit.
+- **Rebuild `public/` after any `src/web` edit** so a locally-linked dev
+  server serves the current assets — but there is nothing to commit: `public/`
+  is gitignored, and the published tarball always gets a fresh build from
+  `prepare`. Only the `src/web` sources are reviewable, so never treat a
+  rebuild as part of the diff.
+- **`signalk.appIcon` is `assets/poi-search.png`, resolved out of `public/`.**
+  The build copies `src/web/assets/` to `public/assets/`, and the server's
+  App Store icon probe searches `public/` among its alternate directories, so
+  the path resolves in the published package. The SignalK plugin-CI icon
+  warning about this path is a known false positive: those icon checks are
+  warnings, never errors, and the App Store probe finds it. Do **not** repoint
+  it at `src/web/assets/...` on the strength of that warning — `src/` is not
+  in the `files` whitelist, so that path is absent from the tarball and the
+  icon really would break. (Declaring the committed source path is the tidier,
+  warning-free form, but only if that exact path is added to `files` in the
+  same change.)
