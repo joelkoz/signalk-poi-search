@@ -51,6 +51,75 @@ body.panel select {
   font-size: 13px;
   min-width: 0;
 }
+body.panel .sect {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+body.panel .sect h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9fb3c4;
+}
+.sect-actions {
+  display: flex;
+  gap: 4px;
+}
+body.panel button.linkish {
+  padding: 2px 6px;
+  border: none;
+  background: none;
+  color: #6ab0f3;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+/* One checkbox per known POI category. Two columns so a dozen categories
+   still fit a narrow drawer without scrolling the form out of reach. */
+.cats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 10px;
+}
+.cats.disabled {
+  opacity: 0.45;
+}
+.cat {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  min-width: 0;
+  cursor: pointer;
+}
+body.panel .cat input {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  min-width: 0;
+  padding: 0;
+  accent-color: #1976d2;
+  cursor: pointer;
+}
+.cat span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cat-note {
+  margin: 8px 0 0;
+  font-size: 11px;
+  font-style: italic;
+  color: #9fb3c4;
+  min-height: 0;
+}
 body.panel .actions {
   display: flex;
   justify-content: flex-end;
@@ -75,18 +144,67 @@ body.panel .status {
   color: #9fb3c4;
   min-height: 1em;
 }
+/* Results: name | category | distance. The header uses the same grid so the
+   sortable column labels line up with the values under them. */
+.poi-head:not(:empty) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 56px;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 0 2px 3px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+.poi-head .sortcol {
+  grid-column: 1;
+  justify-self: start;
+}
+.poi-head .sortcol.num {
+  grid-column: 3;
+  justify-self: end;
+}
+body.panel .poi-head .sortcol {
+  padding: 2px 0;
+  border: none;
+  background: none;
+  color: #9fb3c4;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+body.panel .poi-head .sortcol:hover {
+  color: #e8edf2;
+}
 .poi-results {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 0;
   padding: 0;
   font-size: 13px;
 }
 .poi-results li {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 56px;
+  align-items: baseline;
   gap: 8px;
   padding: 4px 2px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.poi-results li.poi-more {
+  display: block;
+}
+.poi-dist {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #cfdae4;
+}
+/* Tapping a result centres the chart on it — the reliable way to see a match
+   that lies outside the host's own note-fetch radius. */
+.poi-results li.tappable {
+  cursor: pointer;
+}
+.poi-results li.tappable:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 .poi-name {
   overflow: hidden;

@@ -75,14 +75,28 @@ position (`navigation.position`).
   `rm -rf node_modules package-lock.json && npm install`, then confirm the lock
   has zero `../signalk-plotterext-bus` references.
 - **Filters are display-only and user-clearable.** This extension never
-  modifies notes; it only pushes include filters with a human-readable
-  `label` (the host renders it as a clearable chip). Clearing state and the
-  host filter must stay in sync (`Show all` clears both).
+  modifies notes; it only pushes filters with a human-readable `label` (the
+  host renders it as a clearable chip). Clearing state and the host filter
+  must stay in sync, and dismissing the chip must clear *everything* this
+  extension is filtering — search and hidden categories both — or the chip
+  becomes impossible to dismiss.
+- **One filter, composed here.** The host tracks at most one filter per
+  (extension, resource type), so the search and the category checkboxes are
+  combined in `pushFilter()` rather than pushed separately. Keep that the
+  single place that calls `resources.setFilter`.
+- **Hide categories with `exclude`, never `include`.** A filter condition on
+  a missing field is false, so an include-by-category filter would also hide
+  every note that carries no category at all.
 - **The search summary lives in extension-scope state** so the results
   widget and a reopened panel agree; widgets re-render via `state.changed`.
 - Degrade gracefully: `map` and `widgets` are optional capabilities; the
   panel must work without them.
-- Category matching keys off `properties.skIcon` (how ActiveCaptain encodes
-  POI type) but must not break on notes without it ('Any category' always
-  works).
+- **Category means `properties.skIcon` and only that** (how ActiveCaptain
+  encodes POI type). Do not re-add a `group` fallback: the hide filter matches
+  one field path and `match` conditions are AND-combined with no OR, so a
+  group-derived category would be offered in the UI and then fail to hide
+  anything. Notes without `skIcon` are uncategorized, always visible, and
+  'All shown types' always works. The category list is a *seed*, not a
+  fixture: categories seen in query results are learned and remembered, so
+  never assume the ActiveCaptain set is exhaustive.
 - Rebuild and commit `public/` in the same change as any `src/web` edit.

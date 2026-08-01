@@ -11,13 +11,23 @@ function esc(s) {
 
 function render(state) {
   const root = document.getElementById('root')
-  if (state?.active) {
+  if (state?.searchActive) {
     root.innerHTML = `
       <div class="poiw">
         <div class="poiw-count">${Number(state.count) || 0}</div>
         <div class="poiw-text">
           <div class="poiw-label">${esc(state.label ?? 'POI search')}</div>
           <div class="poiw-hint">Tap to refine</div>
+        </div>
+      </div>`
+  } else if (state?.active) {
+    // No search running, but categories are being hidden from the chart.
+    root.innerHTML = `
+      <div class="poiw">
+        <div class="poiw-count">${Array.isArray(state.hidden) ? state.hidden.length : 0}</div>
+        <div class="poiw-text">
+          <div class="poiw-label">${esc(state.label ?? 'POI filter')}</div>
+          <div class="poiw-hint">Tap to change</div>
         </div>
       </div>`
   } else {
@@ -76,11 +86,18 @@ async function main() {
   }
   await client.subscribe(['state.changed'], load)
   // The host clears the notes filter when the user dismisses the filter chip;
-  // reflect that here so the widget stops showing a stale active search.
+  // reflect that here so the widget stops showing a stale active search. The
+  // hidden-category selection is cleared with it (same reasoning as the
+  // panel: re-applying it would make the chip impossible to dismiss) — this
+  // matters when the panel has never been opened and the widget is the only
+  // live context.
   await client.subscribe(['filters.changed'], (_name, params) => {
     if (params?.type === 'notes' && params?.active === false) {
       client.state
-        .set({ active: false, count: 0, label: '' }, 'extension')
+        .set(
+          { active: false, searchActive: false, count: 0, label: '', hidden: [] },
+          'extension'
+        )
         .catch(() => {})
     }
   })
