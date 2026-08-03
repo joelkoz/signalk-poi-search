@@ -118,11 +118,14 @@ function categoryOf(note) {
   return localId(note.properties?.skIcon ?? '')
 }
 
+// Discovered ids are raw symbol ids and are routinely hyphenated
+// ('dive-site', 'explore-dive-site'), so turn separators into spaces and
+// sentence-case the result — matching the seeded labels, which read
+// 'Boat ramp' rather than 'Boat Ramp'.
 function titleOf(category) {
-  return (
-    SEED_CATEGORIES[category] ??
-    category.charAt(0).toUpperCase() + category.slice(1)
-  )
+  if (SEED_CATEGORIES[category]) return SEED_CATEGORIES[category]
+  const words = category.replace(/[-_]+/g, ' ').trim()
+  return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
 function sortedCategories() {

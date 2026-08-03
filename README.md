@@ -18,10 +18,10 @@ to see — hazards, bridges, whatever you find noisy — and they disappear from
 the chart until you check them again. This stays in effect as you cruise; it is
 not tied to a search.
 
-The list starts with the usual ActiveCaptain categories, then adds any other
-filterable categories exposed by your server's notes providers. It can still
-grow later if a provider only exposes a category in position-based search
-results.
+The list starts with the usual ActiveCaptain categories, then adds the
+categories used by any provider that can list its whole collection. Providers
+that only answer position-based queries — ActiveCaptain among them — contribute
+their categories after a search turns one up instead.
 
 Points of interest that carry no category are always shown, so nothing you
 placed yourself can be hidden by accident.
