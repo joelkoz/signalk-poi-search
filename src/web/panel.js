@@ -18,9 +18,8 @@
 import { connectExtension } from 'signalk-plotterext-bus/extension'
 
 // Seed categories: the ActiveCaptain POI types, which arrive as
-// properties.skIcon (lowercased). This is only a seed — any other category
-// seen in a query result is added to the list and remembered, so other notes
-// providers get their own categories without this file knowing about them.
+// properties.skIcon (lowercased). This is only a seed — startup discovery and
+// later search results add anything else the server's notes providers expose.
 const SEED_CATEGORIES = {
   marina: 'Marina',
   anchorage: 'Anchorage',
@@ -242,6 +241,14 @@ function learnCategories(notes) {
     }
   }
   return grew
+}
+
+async function discoverCategories() {
+  const collection = await client.call('resources.list', {
+    type: 'notes',
+    query: {}
+  })
+  return learnCategories(Object.values(collection ?? {}))
 }
 
 /* ---------- rendering ---------- */
@@ -682,6 +689,12 @@ async function main() {
   })
   document.getElementById('results').addEventListener('click', onResultTap)
   document.getElementById('results-head').addEventListener('click', onSortClick)
+
+  if (await discoverCategories().catch(() => false)) {
+    renderCategoryOptions()
+    document.getElementById('category').value = saved.category ?? ''
+    renderCategories()
+  }
 
   // Filters do not survive a host reload, so re-apply the remembered category
   // selection on open. A previous search is not restored — its ids describe a
