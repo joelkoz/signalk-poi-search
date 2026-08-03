@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.1] - 2026-08-02
 
 ### Changed
+- The plugin now enables itself on first run
+  (`signalk-plugin-enabled-by-default`). It has no configuration at all, so
+  there was nothing for the user to set up before it could work — leaving it
+  disabled just meant it did nothing until the user found the Plugin Config
+  screen.
 - Replaced the App Store screenshot. The previous one predated 1.0 and showed
   a UI that no longer exists (a "Show all" button, no "Show on chart"
   section); it also exceeded the App Store's 1280x800 limit at 1320x990. The
