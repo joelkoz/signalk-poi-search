@@ -5,22 +5,31 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2026-08-03
 
-### Fixed
+### Added
 - Discover filterable note categories when the panel opens, not only after a
   search result happens to include them. Providers such as
   `signalk-keys-reef-resources` now show their `properties.skIcon` categories in
-  the Show on chart checkbox set immediately.
-
-## [1.0.1] - 2026-08-02
-
-### Changed
+  the Show on chart checkbox set immediately. The discovery query is
+  deliberately unbounded: adding a radius would pull in position-based
+  providers and make opening the panel depend on a remote API call, measured at
+  114–441 ms against 22–28 ms unbounded. Providers that require a position —
+  ActiveCaptain among them — return nothing here, so their categories still
+  appear after a search.
 - The plugin now enables itself on first run
   (`signalk-plugin-enabled-by-default`). It has no configuration at all, so
   there was nothing for the user to set up before it could work — leaving it
   disabled just meant it did nothing until the user found the Plugin Config
-  screen.
+  screen. The server only honours this when no `enabled` setting has been
+  saved, so it affects fresh installs and never overrides an existing choice.
+
+### Fixed
+- Sentence-case discovered category labels. Real category ids are routinely
+  hyphenated (`dive-site`, `custom:explore-dive-site`) and rendered as
+  "Dive-site" beside seeded labels like "Boat ramp".
+
+### Changed
 - Replaced the App Store screenshot. The previous one predated 1.0 and showed
   a UI that no longer exists (a "Show all" button, no "Show on chart"
   section); it also exceeded the App Store's 1280x800 limit at 1320x990. The
