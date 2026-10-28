@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-10-27
+
+### Changed
+- Declare the `signalk-category-plotter-extensions` App Store category, so the
+  plugin is listed under "Plotter Extensions" and is discoverable by plotter
+  hosts that search npm for installable extensions. No code change.
+
 ## [1.1.0] - 2026-08-03
 
 ### Added
